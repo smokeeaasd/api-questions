@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Question;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 use function Pest\Laravel\json;
 
@@ -15,7 +16,21 @@ class QuestionController extends Controller
      */
     public function index()
     {
-        $questions = Question::all();
+        $questions = Question::with([
+            'categories',
+            'answers' => function ($query) {
+                $query->with([
+                    'user' => function ($query) {
+                        $query->select('id', 'name');
+                    }
+                ]);
+            },
+            'user' => function ($query) {
+                $query->select('id', 'name');
+            }
+        ])
+        ->orderByDesc('created_at')
+        ->get();
         return response()->json($questions, 200);
     }
 
@@ -24,7 +39,11 @@ class QuestionController extends Controller
      */
     public function store(Request $request)
     {
+        $user = Auth::user();
+        $request->request->set("user_id", $user->id);
+
         $question = Question::create($request->all());
+
         $question->save();
 
         return response()->json($question, 200);
@@ -35,10 +54,23 @@ class QuestionController extends Controller
      */
     public function show(string $id)
     {
-        $question = Question::where('id', $id);
+        $question = Question::with([
+            'categories',
+            'answers' => function ($query) {
+                $query->with([
+                    'user' => function ($query) {
+                        $query->select('id', 'name');
+                    }
+                ])->orderByDesc('created_at');
+            },
+            'user' => function ($query) {
+                $query->select('id', 'name');
+            }
+        ])
+        ->find($id);
 
-        if ($question->exists()) {
-            return response()->json($question->get(), 200);
+        if ($question) {
+            return response()->json($question, 200);
         }
 
         return response()->json([
@@ -51,11 +83,11 @@ class QuestionController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $question = Question::where('id', $id);
+        $question = Question::find($id);
 
-        if ($question->exists()) {
+        if ($question) {
             $question->update($request->all());
-            return response()->json($question->get(), 200);
+            return response()->json($question, 200);
         }
 
         return response()->json([

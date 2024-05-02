@@ -22,7 +22,15 @@ class AnswerController extends Controller
         $question = Question::find($questionId);
 
         if ($question) {
-            return response()->json($question->answers, 200);
+            $answers = Answer::with([
+                "user" => function ($query) {
+                    $query->select('id', 'name');
+                }
+            ])
+            ->where('question_id', $question->id)
+            ->get();
+
+            return response()->json($answers, 200);
         }
 
         return response()->json([
@@ -60,7 +68,9 @@ class AnswerController extends Controller
     {
         $question = Question::find($questionId);
         if ($question) {
-            $answer = Answer::find($id);
+            $answer = Answer::with(['user' => function ($query) {
+                $query->select('id','name');
+            }])->find($id);
 
             if ($answer) {
                 return response()->json($answer, 200);
