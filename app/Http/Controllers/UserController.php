@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Answer;
 use App\Models\Question;
+use App\Models\User;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -36,9 +37,13 @@ class UserController extends Controller
         ]);
     }
 
-    public function foo() {
-        return response()->json([
-            'foo' => 'bar'
-        ]);
+    public function profile()
+    {
+        $user = Auth::user();
+        $user = User::with([
+            'questions',
+            'answers'
+        ])->find($user->id);
+        return response()->json($user);
     }
 }

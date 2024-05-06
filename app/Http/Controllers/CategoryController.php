@@ -90,38 +90,40 @@ class CategoryController extends Controller
         ]);
     }
 
-    public function addToQuestion(Request $request, string $questionId)
+    public function setToQuestion(Request $request, string $questionId)
     {
-        // Encontre a questão pelo ID
         $question = Question::find($questionId);
 
-        if ($question) {
-            // Encontre a categoria pelo ID
-            $categoryId = $request->category_id;
-            $category = Category::find($categoryId);
-
-            if ($category) {
-                // Verifique se a categoria já está associada à questão
-                if ($question->categories->contains($categoryId)) {
-                    return response()->json([
-                        'message' => 'Category is already associated with the question.'
-                    ], 400);
-                }
-                // Adicione a categoria à questão
-                $question->categories()->attach($categoryId);
-                $question->load('categories');
-                return response()->json($question->categories, 200);
-            }
-            return response()->json([
-                'message' => 'Category not found.'
-            ], 404);
+        if (!$question) {
+            return response()->json(['message' => 'Question not found.'], 404);
         }
 
-        return response()->json([
-            'message' => 'Question not found.'
-        ], 404);
-    }
+        $categoryIds = $request->input('categories', []);
 
+        $existingCategoryCount = Category::whereIn('id', $categoryIds)->count();
+
+        if (count($categoryIds) !== $existingCategoryCount) {
+            return response()->json(['message' => 'Some categories not found.'], 404);
+        }
+
+        $question->categories()->sync($categoryIds);
+
+        $question = $question->with([
+            'categories',
+            'answers' => function ($query) {
+                $query->with([
+                    'user' => function ($query) {
+                        $query->select('id', 'name');
+                    }
+                ]);
+            },
+            'user' => function ($query) {
+                $query->select('id', 'name');
+            }
+        ])->find($questionId);
+
+        return response()->json($question->categories, 200);
+    }
 
     public function removeFromQuestion(Request $request, string $questionId, string $categoryId)
     {

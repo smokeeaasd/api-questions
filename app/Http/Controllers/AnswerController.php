@@ -52,7 +52,11 @@ class AnswerController extends Controller
             $answer->question_id = $questionId;
 
             $answer->save();
-
+            $answer = $answer->with([
+                'user' => function ($query) {
+                    $query->select('id', 'name');
+                }
+            ])->find($answer->id);
             return response()->json($answer, 200);
         }
 
